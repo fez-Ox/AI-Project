@@ -25,7 +25,7 @@ except LookupError:
     nltk.download("punkt_tab")
 
 
-def evaluate_model_a(df, vectorizer, models):
+def evaluate_model_a(df, vectorizer, scaler, models):
     """Evaluate Model A verification accuracy with a comparison table."""
     print("=" * 60)
     print(" MODEL A - VERIFICATION METRICS")
@@ -40,7 +40,10 @@ def evaluate_model_a(df, vectorizer, models):
         "article_len", "question_len", "option_len", "overlap_ratio", "option_position"
     ]
     if all(col in df.columns for col in handcrafted_cols):
-        X_handcrafted = csr_matrix(df[handcrafted_cols].fillna(0).values)
+        X_handcrafted_raw = df[handcrafted_cols].fillna(0).values
+        if scaler is not None:
+            X_handcrafted_raw = scaler.transform(X_handcrafted_raw)
+        X_handcrafted = csr_matrix(X_handcrafted_raw)
         X_test = hstack([X_test_tfidf, X_handcrafted])
     else:
         test_overlap = df.apply(
@@ -211,11 +214,13 @@ def main():
     test_df = pd.read_csv(test_path)
 
     vec_path = "models/model_a/vectorizer.pkl"
+    scaler_path = "models/model_a/scaler.pkl"
     if not os.path.exists(vec_path):
         print("Vectorizer not found. Please train models first.")
         return
 
     vectorizer = joblib.load(vec_path)
+    scaler = joblib.load(scaler_path) if os.path.exists(scaler_path) else None
 
     models = {}
     model_files = {
@@ -233,7 +238,7 @@ def main():
         print("No trained models found. Please run model_a_train.py.")
         return
 
-    evaluate_model_a(test_df, vectorizer, models)
+    evaluate_model_a(test_df, vectorizer, scaler, models)
     evaluate_model_b(test_df)
     evaluate_hints(test_df)
 

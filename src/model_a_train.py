@@ -15,7 +15,7 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import silhouette_score
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import normalize, MinMaxScaler
 from sklearn.svm import LinearSVC
 
 
@@ -102,7 +102,11 @@ def train_models():
     for col in handcrafted_cols:
         if col not in train_df.columns:
             train_df[col] = 0.0
-    X_handcrafted = csr_matrix(train_df[handcrafted_cols].fillna(0).values)
+    X_handcrafted_raw = train_df[handcrafted_cols].fillna(0).values
+    print("Scaling handcrafted features...")
+    scaler = MinMaxScaler()
+    X_handcrafted_scaled = scaler.fit_transform(X_handcrafted_raw)
+    X_handcrafted = csr_matrix(X_handcrafted_scaled)
 
     # Combined feature sets
     X_ohe_full = hstack([X_train_ohe, X_handcrafted])
@@ -153,6 +157,7 @@ def train_models():
     print("\nSaving models and vectorizers...")
     joblib.dump(ohe_vectorizer, "models/model_a/vectorizer.pkl")  # Primary
     joblib.dump(tfidf_vectorizer, "models/model_a/tfidf_vectorizer.pkl")  # Optional
+    joblib.dump(scaler, "models/model_a/scaler.pkl")
     joblib.dump(lr_model, "models/model_a/lr_model.pkl")
     joblib.dump(svm_model, "models/model_a/svm_model.pkl")
     joblib.dump(nb_model, "models/model_a/nb_model.pkl")

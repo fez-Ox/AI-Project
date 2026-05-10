@@ -11,7 +11,7 @@ from scipy.sparse import csr_matrix, hstack
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from src.utils import get_overlap_ratio
+from src.utils import get_overlap_ratio, get_word_count, get_option_position
 
 try:
     nltk.data.find("tokenizers/punkt_tab")
@@ -26,15 +26,17 @@ except LookupError:
 # Cached model references
 _vectorizer = None
 _model = None
+_scaler = None
 _distractor_ranker = None
 _hint_scorer = None
 
 
 def load_models(use_ensemble=True):
-    """Load Model A vectorizer + classifier."""
-    global _vectorizer, _model
+    """Load Model A vectorizer, scaler, + classifier."""
+    global _vectorizer, _model, _scaler
 
     vec_path = "models/model_a/vectorizer.pkl"
+    scaler_path = "models/model_a/scaler.pkl"
     if use_ensemble:
         model_path = "models/model_a/ensemble_model.pkl"
         if not os.path.exists(model_path):
@@ -45,6 +47,8 @@ def load_models(use_ensemble=True):
     if os.path.exists(vec_path) and os.path.exists(model_path):
         _vectorizer = joblib.load(vec_path)
         _model = joblib.load(model_path)
+        if os.path.exists(scaler_path):
+            _scaler = joblib.load(scaler_path)
         return True
     return False
 
@@ -82,8 +86,26 @@ def predict_answer(article, question, options, use_ensemble=True):
     combined_texts = [f"{article} {question} {opt}" for opt in opt_list]
 
     X_tfidf = _vectorizer.transform(combined_texts)
-    overlap_feats = [get_overlap_ratio(article, opt) for opt in opt_list]
-    X_infer = hstack([X_tfidf, csr_matrix(np.array(overlap_feats).reshape(-1, 1))])
+    
+    # Handcrafted features: article_len, question_len, option_len, overlap_ratio, option_position
+    art_len = get_word_count(article)
+    q_len = get_word_count(question)
+    
+    handcrafted = []
+    for opt in opt_list:
+        handcrafted.append([
+            art_len,
+            q_len,
+            get_word_count(opt),
+            get_overlap_ratio(article, opt),
+            get_option_position(article, opt)
+        ])
+        
+    X_handcrafted = np.array(handcrafted)
+    if _scaler is not None:
+        X_handcrafted = _scaler.transform(X_handcrafted)
+        
+    X_infer = hstack([X_tfidf, csr_matrix(X_handcrafted)])
 
     if hasattr(_model, "predict_proba"):
         raw_scores = _model.predict_proba(X_infer)[:, 1]
