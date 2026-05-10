@@ -98,7 +98,7 @@ AI-Project/
 │   ├── test_inference.py       # Unit tests
 │   └── run_examples.py         # Example inference runner
 ├── report/
-│   └── final_report.pdf        # Final report
+│   └── final_report.md         # Final report (Markdown)
 ├── requirements.txt
 └── README.md
 ```
