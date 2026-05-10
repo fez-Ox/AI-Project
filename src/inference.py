@@ -59,11 +59,21 @@ def predict_answer(article, question, options):
         opt_list = options
         opt_keys = ["A", "B", "C", "D"]
 
+    from scipy.sparse import csr_matrix, hstack
+
+    from utils import get_overlap_ratio
+
     # Format inputs exactly as in training
     combined_texts = [f"{article} {article} {question} {opt}" for opt in opt_list]
 
     # Vectorize
-    X_infer = _vectorizer.transform(combined_texts)
+    X_infer_tfidf = _vectorizer.transform(combined_texts)
+
+    # Calculate extra custom features
+    overlap_feats = [get_overlap_ratio(article, opt) for opt in opt_list]
+    X_infer = hstack(
+        [X_infer_tfidf, csr_matrix(np.array(overlap_feats).reshape(-1, 1))]
+    )
 
     # Predict probabilities (if using Logistic Regression) or decision function (if SVM)
     if hasattr(_model, "predict_proba"):
