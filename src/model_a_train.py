@@ -27,7 +27,6 @@ def load_data():
 
 
 def compute_purity(cluster_labels, true_labels):
-    """Cluster purity: fraction of samples assigned to the majority class per cluster."""
     total = 0
     for cluster_id in set(cluster_labels):
         mask = cluster_labels == cluster_id
@@ -37,7 +36,6 @@ def compute_purity(cluster_labels, true_labels):
 
 
 def run_unsupervised(X_features, y_train):
-    """Run K-Means clustering and report silhouette score + purity."""
     print("\n--- Unsupervised: K-Means Clustering ---")
 
     # Reduce dimensionality for better clustering
@@ -153,13 +151,13 @@ def train_models():
     # --- Save models ---
     os.makedirs("models/model_a/traditional", exist_ok=True)
     print("\nSaving models and vectorizers...")
-    joblib.dump(ohe_vectorizer, "models/model_a/vectorizer.pkl")  # Primary
-    joblib.dump(tfidf_vectorizer, "models/model_a/tfidf_vectorizer.pkl")  # Optional
-    joblib.dump(scaler, "models/model_a/scaler.pkl")
-    joblib.dump(lr_model, "models/model_a/lr_model.pkl")
-    joblib.dump(svm_model, "models/model_a/svm_model.pkl")
-    joblib.dump(nb_model, "models/model_a/nb_model.pkl")
-    joblib.dump(ensemble_model, "models/model_a/ensemble_model.pkl")
+    joblib.dump(ohe_vectorizer, "models/model_a/traditional/vectorizer.pkl")  # Primary
+    joblib.dump(tfidf_vectorizer, "models/model_a/traditional/tfidf_vectorizer.pkl")  # Optional
+    joblib.dump(scaler, "models/model_a/traditional/scaler.pkl")
+    joblib.dump(lr_model, "models/model_a/traditional/lr_model.pkl")
+    joblib.dump(svm_model, "models/model_a/traditional/svm_model.pkl")
+    joblib.dump(nb_model, "models/model_a/traditional/nb_model.pkl")
+    joblib.dump(ensemble_model, "models/model_a/traditional/ensemble_model.pkl")
     print("Training complete. Run src/evaluate.py to see metrics.")
 
 

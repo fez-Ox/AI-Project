@@ -183,17 +183,17 @@ def main():
     w2v_model = train_word2vec(unique_articles)
 
     os.makedirs("models/model_b/traditional", exist_ok=True)
-    w2v_model.save("models/model_b/word2vec.model")
-    print("Model B (Word2Vec) saved to models/model_b/word2vec.model!")
+    w2v_model.save("models/model_b/traditional/word2vec.model")
+    print("Model B (Word2Vec) saved to models/model_b/traditional/word2vec.model!")
 
     # 2. Distractor ranker
     distractor_ranker = train_distractor_ranker(df)
-    joblib.dump(distractor_ranker, "models/model_b/distractor_ranker.pkl")
+    joblib.dump(distractor_ranker, "models/model_b/traditional/distractor_ranker.pkl")
     print("Distractor ranker saved.")
 
     # 3. Hint scorer
     hint_scorer = train_hint_scorer(df)
-    joblib.dump(hint_scorer, "models/model_b/hint_scorer.pkl")
+    joblib.dump(hint_scorer, "models/model_b/traditional/hint_scorer.pkl")
     print("Hint scorer saved.")
 
     print("\nModel B training complete!")
