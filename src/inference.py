@@ -7,7 +7,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import joblib
 import nltk
 import numpy as np
-from gensim.models import Word2Vec
 from scipy.sparse import csr_matrix, hstack
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -132,56 +131,55 @@ def generate_question(article):
 
 
 def generate_distractors(article, question, answer):
-    global _w2v_model
-
-    # Load global model if not already loaded
-    if _w2v_model is None:
-        model_path = "models/model_b/word2vec.model"
-        if os.path.exists(model_path):
-            _w2v_model = Word2Vec.load(model_path)
-        else:
-            raise FileNotFoundError(
-                "Global Word2Vec model not found. Run model_b_train.py first."
-            )
-
-    # Extract potential candidate words from the article
+    """
+    Generates 3 plausible distractors using standard TF-IDF and Cosine Similarity.
+    Applies the "medium similarity heuristic" to avoid synonyms.
+    """
+    # 1. Extract Candidate Phrases
     article_tokens = nltk.word_tokenize(article.lower())
     ans_tokens = nltk.word_tokenize(answer.lower())
 
-    # Tokens from the answer that actually exist in our global vocabulary
-    valid_ans_tokens = [t for t in ans_tokens if t in _w2v_model.wv]
-
     stop_words = set(nltk.corpus.stopwords.words("english"))
 
-    # Extract unique candidates from the article that are valid and not part of the answer
+    # Filter valid candidates (not stopwords, length > 2, not part of the answer)
     unique_article_words = list(set(article_tokens))
     valid_candidates = [
         w
         for w in unique_article_words
-        if w not in stop_words
-        and len(w) > 2
-        and w not in ans_tokens
-        and w in _w2v_model.wv
+        if w not in stop_words and len(w) > 2 and w not in ans_tokens
     ]
 
     candidates = []
-    if valid_ans_tokens and valid_candidates:
-        similarities = []
-        for w in valid_candidates:
-            # Average similarity of this candidate to the correct answer tokens
-            sim = np.mean(
-                [_w2v_model.wv.similarity(w, ans_t) for ans_t in valid_ans_tokens]
-            )
-            similarities.append((w, sim))
+    if valid_candidates:
+        # 2. Vectorize candidates + answer
+        vectorizer = TfidfVectorizer(stop_words="english")
+        try:
+            # Fit on the article to get the vocabulary space
+            vectorizer.fit([article])
 
-        # Rank by similarity descending
-        similarities.sort(key=lambda x: x[1], reverse=True)
+            # Transform candidates and the actual answer
+            ans_vec = vectorizer.transform([answer])
+            cand_vecs = vectorizer.transform(valid_candidates)
 
-        # Medium Similarity Heuristic: Drop the top 15% (too similar/synonyms)
-        start_idx = max(1, int(len(similarities) * 0.15))
-        pool = similarities[start_idx:]
+            # 3. Compute cosine similarity
+            sims = cosine_similarity(ans_vec, cand_vecs).flatten()
 
-        candidates = [word for word, sim in pool[:3]]
+            # Pair candidates with their similarity score
+            similarities = [
+                (valid_candidates[i], sims[i]) for i in range(len(valid_candidates))
+            ]
+
+            # 4. Rank by similarity descending
+            similarities.sort(key=lambda x: x[1], reverse=True)
+
+            # 5. Medium Similarity Heuristic: Drop the top 15% (too similar/synonyms)
+            start_idx = max(1, int(len(similarities) * 0.15))
+            pool = similarities[start_idx:]
+
+            candidates = [word for word, sim in pool[:3]]
+
+        except ValueError:
+            pass  # Fallback below if TF-IDF fails on very short texts
 
     # Fallback if the pool is too small
     if len(candidates) < 3:

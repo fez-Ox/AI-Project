@@ -73,10 +73,8 @@ def run_example():
         print("Generated Distractors:")
         for i, dist in enumerate(distractors):
             print(f"  {i + 1}. {dist}")
-    except FileNotFoundError as e:
-        print(
-            f"Error: {e}\n(Please ensure you ran 'python src/model_b_train.py' first)"
-        )
+    except Exception as e:
+        print(f"Error: {e}")
 
     print("\n" + "-" * 60)
     print("4. MODEL B - HINT GENERATION (generate_hints)")
