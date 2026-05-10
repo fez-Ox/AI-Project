@@ -21,6 +21,7 @@ except LookupError:
 # Global variables to hold loaded models
 _vectorizer = None
 _model = None
+_w2v_model = None
 
 
 def load_models():
@@ -114,30 +115,46 @@ def generate_distractors(article, question, answer):
     Generates 3 plausible distractors using Gensim's Word2Vec for semantic similarity.
     Applies the "medium similarity heuristic" to avoid synonyms.
     """
-    sentences = [
-        nltk.word_tokenize(sent.lower()) for sent in nltk.sent_tokenize(article)
-    ]
+    global _w2v_model
 
-    # Train a quick local Word2Vec model on the article's vocabulary
-    model = Word2Vec(sentences, vector_size=50, window=5, min_count=1, workers=1)
+    # Load global model if not already loaded
+    if _w2v_model is None:
+        model_path = "models/model_b/word2vec.model"
+        if os.path.exists(model_path):
+            _w2v_model = Word2Vec.load(model_path)
+        else:
+            raise FileNotFoundError(
+                "Global Word2Vec model not found. Run model_b_train.py first."
+            )
 
+    # Extract potential candidate words from the article
+    article_tokens = nltk.word_tokenize(article.lower())
     ans_tokens = nltk.word_tokenize(answer.lower())
-    valid_ans_tokens = [t for t in ans_tokens if t in model.wv]
 
-    vocab = list(model.wv.index_to_key)
+    # Tokens from the answer that actually exist in our global vocabulary
+    valid_ans_tokens = [t for t in ans_tokens if t in _w2v_model.wv]
+
     stop_words = set(nltk.corpus.stopwords.words("english"))
 
-    # Filter valid candidates (not stopwords, length > 2, not part of the answer)
-    valid_vocab = [
-        w for w in vocab if w not in stop_words and len(w) > 2 and w not in ans_tokens
+    # Extract unique candidates from the article that are valid and not part of the answer
+    unique_article_words = list(set(article_tokens))
+    valid_candidates = [
+        w
+        for w in unique_article_words
+        if w not in stop_words
+        and len(w) > 2
+        and w not in ans_tokens
+        and w in _w2v_model.wv
     ]
 
     candidates = []
-    if valid_ans_tokens and valid_vocab:
+    if valid_ans_tokens and valid_candidates:
         similarities = []
-        for w in valid_vocab:
-            # Average similarity of this word to the answer tokens
-            sim = np.mean([model.wv.similarity(w, ans_t) for ans_t in valid_ans_tokens])
+        for w in valid_candidates:
+            # Average similarity of this candidate to the correct answer tokens
+            sim = np.mean(
+                [_w2v_model.wv.similarity(w, ans_t) for ans_t in valid_ans_tokens]
+            )
             similarities.append((w, sim))
 
         # Rank by similarity descending
@@ -151,7 +168,7 @@ def generate_distractors(article, question, answer):
 
     # Fallback if the pool is too small
     if len(candidates) < 3:
-        candidates.extend([w for w in valid_vocab if w not in candidates][:3])
+        candidates.extend([w for w in valid_candidates if w not in candidates][:3])
         candidates = list(set(candidates))[:3]
 
     distractors = [c.capitalize() for c in candidates]
