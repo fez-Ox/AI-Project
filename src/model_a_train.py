@@ -114,7 +114,7 @@ def train_models():
     # --- Supervised models (trained on OHE as primary) ---
     print("\nTraining Logistic Regression (One-Hot)...")
     lr_model = LogisticRegression(
-        C=1.0, max_iter=5000, random_state=42, class_weight="balanced", solver="saga"
+        C=1.0, max_iter=5000, random_state=42, class_weight="balanced"
     )
     lr_model.fit(X_ohe_full, y_train)
 
