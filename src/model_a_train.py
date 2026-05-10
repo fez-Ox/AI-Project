@@ -116,27 +116,21 @@ def train_models():
     sil, purity = run_unsupervised(X_train_ohe, y_train)
 
     # --- Supervised models (trained on OHE as primary) ---
-    print("\nTraining Logistic Regression (One-Hot)...")
-    lr_model = LogisticRegression(
-        C=1.0, max_iter=5000, random_state=42, class_weight="balanced"
-    )
-    lr_model.fit(X_ohe_full, y_train)
-
-    print("Training Calibrated Linear SVM (One-Hot)...")
+    print("\nTraining Ensemble and Base Models (Soft Voting: LR + SVM + NB)...")
+    base_lr = LogisticRegression(C=1.0, max_iter=5000, random_state=42, class_weight="balanced")
     base_svm = LinearSVC(C=1.0, random_state=42, dual="auto", class_weight="balanced", max_iter=5000)
-    svm_model = CalibratedClassifierCV(estimator=base_svm, cv=3)
-    svm_model.fit(X_ohe_full, y_train)
+    calib_svm = CalibratedClassifierCV(estimator=base_svm, cv=3)
+    base_nb = MultinomialNB(alpha=1.0)
 
-    print("Training Naive Bayes (One-Hot)...")
-    nb_model = MultinomialNB(alpha=1.0)
-    nb_model.fit(X_train_ohe, y_train)  # NB needs non-negative, so use OHE only
-
-    print("Training Ensemble (Soft Voting: LR + SVM + NB)...")
     ensemble_model = VotingClassifier(
-        estimators=[("lr", lr_model), ("svm", svm_model), ("nb", nb_model)],
+        estimators=[("lr", base_lr), ("svm", calib_svm), ("nb", base_nb)],
         voting="soft",
     )
+    # Fit the ensemble, which will fit all base models internally
     ensemble_model.fit(X_ohe_full, y_train)
+
+    # Extract fitted models to avoid double-training and use for saving/scoring
+    lr_model, svm_model, nb_model = ensemble_model.estimators_
 
     # --- Comparison table ---
     print("\n" + "=" * 55)
@@ -148,7 +142,7 @@ def train_models():
     print(f"{'K-Means Clustering':<30} {'Cluster Purity':<20} {purity:.4f}")
     print(f"{'Logistic Regression':<30} {'Train Accuracy':<20} {lr_model.score(X_ohe_full, y_train):.4f}")
     print(f"{'Linear SVM':<30} {'Train Accuracy':<20} {svm_model.score(X_ohe_full, y_train):.4f}")
-    print(f"{'Naive Bayes':<30} {'Train Accuracy':<20} {nb_model.score(X_train_ohe, y_train):.4f}")
+    print(f"{'Naive Bayes':<30} {'Train Accuracy':<20} {nb_model.score(X_ohe_full, y_train):.4f}")
     print(f"{'Ensemble (LR+SVM+NB)':<30} {'Train Accuracy':<20} {ensemble_model.score(X_ohe_full, y_train):.4f}")
     print("=" * 55)
 
