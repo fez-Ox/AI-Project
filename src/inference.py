@@ -77,18 +77,26 @@ def predict_answer(article, question, options):
 
     # Predict probabilities (if using Logistic Regression) or decision function (if SVM)
     if hasattr(_model, "predict_proba"):
-        probs = _model.predict_proba(X_infer)[:, 1]  # Probability of class 1 (Correct)
+        raw_scores = _model.predict_proba(X_infer)[
+            :, 1
+        ]  # Probability of class 1 (Correct)
     else:
-        probs = _model.decision_function(X_infer)
+        raw_scores = _model.decision_function(X_infer)
+
+    # Apply Softmax to convert independent scores into a unified probability distribution that sums to 1
+    exp_scores = np.exp(
+        raw_scores - np.max(raw_scores)
+    )  # Subtracted max for numerical stability
+    softmax_probs = exp_scores / exp_scores.sum()
 
     # Find the index of the option with the highest score
-    best_idx = np.argmax(probs)
+    best_idx = np.argmax(softmax_probs)
 
     return {
         "predicted_option": opt_keys[best_idx],
         "predicted_text": opt_list[best_idx],
         "confidence_scores": {
-            opt_keys[i]: float(probs[i]) for i in range(len(opt_keys))
+            opt_keys[i]: float(softmax_probs[i]) for i in range(len(opt_keys))
         },
     }
 
