@@ -94,7 +94,7 @@ def train_and_evaluate():
     # Fit on training data ONLY to avoid data leakage
     from scipy.sparse import csr_matrix, hstack
 
-    from utils import get_overlap_ratio
+    from src.utils import get_overlap_ratio
 
     print("Fitting Vectorizer and Transforming Training Data...")
     X_train_tfidf = vectorizer.fit_transform(train_df["combined_text"].fillna(""))

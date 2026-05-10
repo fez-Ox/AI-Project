@@ -61,7 +61,7 @@ def predict_answer(article, question, options):
 
     from scipy.sparse import csr_matrix, hstack
 
-    from utils import get_overlap_ratio
+    from src.utils import get_overlap_ratio
 
     # Format inputs exactly as in training
     combined_texts = [f"{article} {article} {question} {opt}" for opt in opt_list]
