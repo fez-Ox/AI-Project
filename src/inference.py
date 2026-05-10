@@ -104,6 +104,7 @@ def predict_answer(article, question, options, use_ensemble=True):
     X_handcrafted = np.array(handcrafted)
     if _scaler is not None:
         X_handcrafted = _scaler.transform(X_handcrafted)
+        X_handcrafted = np.clip(X_handcrafted, 0.0, None)
         
     X_infer = hstack([X_tfidf, csr_matrix(X_handcrafted)])
 

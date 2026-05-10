@@ -106,6 +106,10 @@ def train_models():
     print("Scaling handcrafted features...")
     scaler = MinMaxScaler()
     X_handcrafted_scaled = scaler.fit_transform(X_handcrafted_raw)
+    
+    # Force strict zero minimum to prevent -1e-17 floating point errors from crashing Naive Bayes
+    X_handcrafted_scaled = np.clip(X_handcrafted_scaled, 0.0, None)
+    
     X_handcrafted = csr_matrix(X_handcrafted_scaled)
 
     # Combined feature sets

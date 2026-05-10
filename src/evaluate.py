@@ -43,6 +43,7 @@ def evaluate_model_a(df, vectorizer, scaler, models):
         X_handcrafted_raw = df[handcrafted_cols].fillna(0).values
         if scaler is not None:
             X_handcrafted_raw = scaler.transform(X_handcrafted_raw)
+            X_handcrafted_raw = np.clip(X_handcrafted_raw, 0.0, None)
         X_handcrafted = csr_matrix(X_handcrafted_raw)
         X_test = hstack([X_test_tfidf, X_handcrafted])
     else:
