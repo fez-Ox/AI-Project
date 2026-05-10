@@ -163,7 +163,7 @@ def evaluate_hints(df):
     print(" MODEL B - HINT GENERATION EVALUATION")
     print("=" * 60)
 
-    hint_scorer_path = "models/model_b/traditional/hint_scorer.pkl"
+    hint_scorer_path = "models/model_b/hint_scorer.pkl"
     if not os.path.exists(hint_scorer_path):
         print("Hint scorer not found. Skipping R² evaluation.")
         return
@@ -214,8 +214,8 @@ def main():
     print(f"Loading evaluation dataset from {test_path}...")
     test_df = pd.read_csv(test_path)
 
-    vec_path = "models/model_a/traditional/vectorizer.pkl"
-    scaler_path = "models/model_a/traditional/scaler.pkl"
+    vec_path = "models/model_a/vectorizer.pkl"
+    scaler_path = "models/model_a/scaler.pkl"
     if not os.path.exists(vec_path):
         print("Vectorizer not found. Please train models first.")
         return
@@ -225,10 +225,10 @@ def main():
 
     models = {}
     model_files = {
-        "Logistic Regression": "models/model_a/traditional/lr_model.pkl",
-        "Linear SVM": "models/model_a/traditional/svm_model.pkl",
-        "Naive Bayes": "models/model_a/traditional/nb_model.pkl",
-        "Ensemble (LR+SVM+NB)": "models/model_a/traditional/ensemble_model.pkl",
+        "Logistic Regression": "models/model_a/lr_model.pkl",
+        "Linear SVM": "models/model_a/svm_model.pkl",
+        "Naive Bayes": "models/model_a/nb_model.pkl",
+        "Ensemble (LR+SVM+NB)": "models/model_a/ensemble_model.pkl",
     }
 
     for name, path in model_files.items():

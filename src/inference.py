@@ -35,14 +35,14 @@ def load_models(use_ensemble=True):
     """Load Model A vectorizer, scaler, + classifier."""
     global _vectorizer, _model, _scaler
 
-    vec_path = "models/model_a/traditional/vectorizer.pkl"
-    scaler_path = "models/model_a/traditional/scaler.pkl"
+    vec_path = "models/model_a/vectorizer.pkl"
+    scaler_path = "models/model_a/scaler.pkl"
     if use_ensemble:
-        model_path = "models/model_a/traditional/ensemble_model.pkl"
+        model_path = "models/model_a/ensemble_model.pkl"
         if not os.path.exists(model_path):
-            model_path = "models/model_a/traditional/lr_model.pkl"
+            model_path = "models/model_a/lr_model.pkl"
     else:
-        model_path = "models/model_a/traditional/lr_model.pkl"
+        model_path = "models/model_a/lr_model.pkl"
 
     if os.path.exists(vec_path) and os.path.exists(model_path):
         _vectorizer = joblib.load(vec_path)
@@ -57,8 +57,8 @@ def load_model_b():
     """Load Model B artifacts (distractor ranker and hint scorer)."""
     global _distractor_ranker, _hint_scorer
 
-    ranker_path = "models/model_b/traditional/distractor_ranker.pkl"
-    scorer_path = "models/model_b/traditional/hint_scorer.pkl"
+    ranker_path = "models/model_b/distractor_ranker.pkl"
+    scorer_path = "models/model_b/hint_scorer.pkl"
 
     if os.path.exists(ranker_path):
         _distractor_ranker = joblib.load(ranker_path)

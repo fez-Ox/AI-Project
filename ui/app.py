@@ -315,10 +315,10 @@ with tab4:
     with metrics_col1:
         st.markdown("**Available Models:**")
         model_files = {
-            "Logistic Regression": "models/model_a/traditional/lr_model.pkl",
-            "Linear SVM": "models/model_a/traditional/svm_model.pkl",
-            "Naive Bayes": "models/model_a/traditional/nb_model.pkl",
-            "Ensemble": "models/model_a/traditional/ensemble_model.pkl",
+            "Logistic Regression": "models/model_a/lr_model.pkl",
+            "Linear SVM": "models/model_a/svm_model.pkl",
+            "Naive Bayes": "models/model_a/nb_model.pkl",
+            "Ensemble": "models/model_a/ensemble_model.pkl",
         }
         for name, path in model_files.items():
             status = "✅ Loaded" if os.path.exists(path) else "❌ Not found"
@@ -327,8 +327,8 @@ with tab4:
     with metrics_col2:
         st.markdown("**Vectorizers:**")
         vec_files = {
-            "One-Hot (Primary)": "models/model_a/traditional/vectorizer.pkl",
-            "TF-IDF (Optional)": "models/model_a/traditional/tfidf_vectorizer.pkl",
+            "One-Hot (Primary)": "models/model_a/vectorizer.pkl",
+            "TF-IDF (Optional)": "models/model_a/tfidf_vectorizer.pkl",
         }
         for name, path in vec_files.items():
             status = "✅ Loaded" if os.path.exists(path) else "❌ Not found"
@@ -337,9 +337,9 @@ with tab4:
     # --- Model B Metrics ---
     st.markdown("### Model B — Performance")
     model_b_files = {
-        "Word2Vec": "models/model_b/traditional/word2vec.model",
-        "Distractor Ranker": "models/model_b/traditional/distractor_ranker.pkl",
-        "Hint Scorer": "models/model_b/traditional/hint_scorer.pkl",
+        "Word2Vec": "models/model_b/word2vec.model",
+        "Distractor Ranker": "models/model_b/distractor_ranker.pkl",
+        "Hint Scorer": "models/model_b/hint_scorer.pkl",
     }
     for name, path in model_b_files.items():
         status = "✅ Loaded" if os.path.exists(path) else "❌ Not found"

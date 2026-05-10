@@ -149,15 +149,15 @@ def train_models():
     print("=" * 55)
 
     # --- Save models ---
-    os.makedirs("models/model_a/traditional", exist_ok=True)
+    os.makedirs("models/model_a", exist_ok=True)
     print("\nSaving models and vectorizers...")
-    joblib.dump(ohe_vectorizer, "models/model_a/traditional/vectorizer.pkl")  # Primary
-    joblib.dump(tfidf_vectorizer, "models/model_a/traditional/tfidf_vectorizer.pkl")  # Optional
-    joblib.dump(scaler, "models/model_a/traditional/scaler.pkl")
-    joblib.dump(lr_model, "models/model_a/traditional/lr_model.pkl")
-    joblib.dump(svm_model, "models/model_a/traditional/svm_model.pkl")
-    joblib.dump(nb_model, "models/model_a/traditional/nb_model.pkl")
-    joblib.dump(ensemble_model, "models/model_a/traditional/ensemble_model.pkl")
+    joblib.dump(ohe_vectorizer, "models/model_a/vectorizer.pkl")  # Primary
+    joblib.dump(tfidf_vectorizer, "models/model_a/tfidf_vectorizer.pkl")  # Optional
+    joblib.dump(scaler, "models/model_a/scaler.pkl")
+    joblib.dump(lr_model, "models/model_a/lr_model.pkl")
+    joblib.dump(svm_model, "models/model_a/svm_model.pkl")
+    joblib.dump(nb_model, "models/model_a/nb_model.pkl")
+    joblib.dump(ensemble_model, "models/model_a/ensemble_model.pkl")
     print("Training complete. Run src/evaluate.py to see metrics.")
 
 
