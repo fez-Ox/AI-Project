@@ -114,12 +114,12 @@ def train_models():
     # --- Supervised models (trained on OHE as primary) ---
     print("\nTraining Logistic Regression (One-Hot)...")
     lr_model = LogisticRegression(
-        C=5.0, max_iter=1000, random_state=42, class_weight="balanced"
+        C=1.0, max_iter=5000, random_state=42, class_weight="balanced", solver="saga"
     )
     lr_model.fit(X_ohe_full, y_train)
 
     print("Training Calibrated Linear SVM (One-Hot)...")
-    base_svm = LinearSVC(C=1.0, random_state=42, dual="auto", class_weight="balanced")
+    base_svm = LinearSVC(C=1.0, random_state=42, dual="auto", class_weight="balanced", max_iter=5000)
     svm_model = CalibratedClassifierCV(estimator=base_svm, cv=3)
     svm_model.fit(X_ohe_full, y_train)
 
