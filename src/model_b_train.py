@@ -5,11 +5,16 @@ import nltk
 import pandas as pd
 from gensim.models import Word2Vec
 
-# Ensure punkt is downloaded
+# Ensure punkt and punkt_tab are downloaded
 try:
     nltk.data.find("tokenizers/punkt")
 except LookupError:
     nltk.download("punkt")
+
+try:
+    nltk.data.find("tokenizers/punkt_tab")
+except LookupError:
+    nltk.download("punkt_tab")
 
 
 def train_model_b():
