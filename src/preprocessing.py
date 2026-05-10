@@ -68,6 +68,6 @@ if __name__ == "__main__":
     # Ensure processed directory exists
     os.makedirs("data/processed", exist_ok=True)
 
-    # preprocess_pipeline("data/raw/train.csv", "data/processed/train_binary.csv")
+    preprocess_pipeline("data/raw/train.csv", "data/processed/train_binary.csv")
     preprocess_pipeline("data/raw/dev.csv", "data/processed/val_binary.csv")
-    # preprocess_pipeline("data/raw/test.csv", "data/processed/test_binary.csv")
+    preprocess_pipeline("data/raw/test.csv", "data/processed/test_binary.csv")
