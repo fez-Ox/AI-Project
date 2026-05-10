@@ -30,12 +30,26 @@ def load_data():
 
 def run_unsupervised(X_train_tfidf):
     print("Running Unsupervised Component (K-Means Clustering)...")
+
+    from sklearn.decomposition import TruncatedSVD
+    from sklearn.preprocessing import normalize
+
+    # Reduce high-dimensional TF-IDF to 50 dimensions using LSA (SVD)
+    # This removes noise and helps KMeans find meaningful clusters
+    print("Reducing TF-IDF dimensionality via LSA (SVD) for better clustering...")
+    svd = TruncatedSVD(n_components=50, random_state=42)
+    X_reduced = svd.fit_transform(X_train_tfidf)
+    X_reduced = normalize(
+        X_reduced
+    )  # Normalizing often improves KMeans text clustering
+
     kmeans = KMeans(n_clusters=2, random_state=42, n_init="auto")
-    cluster_labels = kmeans.fit_predict(X_train_tfidf)
+    cluster_labels = kmeans.fit_predict(X_reduced)
+
     score = silhouette_score(
-        X_train_tfidf, cluster_labels, sample_size=10000, random_state=42
+        X_reduced, cluster_labels, sample_size=10000, random_state=42
     )
-    print(f"K-Means Silhouette Score: {score:.4f}\n")
+    print(f"K-Means Silhouette Score (on reduced space): {score:.4f}\n")
 
 
 def train_models():
