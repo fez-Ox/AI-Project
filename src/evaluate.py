@@ -1,4 +1,8 @@
 import os
+import sys
+
+# Add the project root to the Python path to allow absolute imports from src
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import joblib
 import nltk
