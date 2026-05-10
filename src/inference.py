@@ -4,10 +4,12 @@ import joblib
 import nltk
 import numpy as np
 from gensim.models import Word2Vec
+from scipy.sparse import csr_matrix, hstack
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Ensure punkt and stopwords are downloaded
+from src.utils import get_overlap_ratio
+
 try:
     nltk.data.find("tokenizers/punkt")
 except LookupError:
@@ -23,18 +25,22 @@ try:
 except LookupError:
     nltk.download("stopwords")
 
-# Global variables to hold loaded models
 _vectorizer = None
 _model = None
 _w2v_model = None
 
 
-def load_models():
-    """Load the vectorizer and classification model from disk."""
+def load_models(use_ensemble=True):
     global _vectorizer, _model
 
     vec_path = "models/model_a/vectorizer.pkl"
-    model_path = "models/model_a/lr_model.pkl"  # Can be switched to svm_model.pkl
+
+    if use_ensemble:
+        model_path = "models/model_a/ensemble_model.pkl"
+        if not os.path.exists(model_path):
+            model_path = "models/model_a/lr_model.pkl"
+    else:
+        model_path = "models/model_a/lr_model.pkl"
 
     if os.path.exists(vec_path) and os.path.exists(model_path):
         _vectorizer = joblib.load(vec_path)
@@ -43,13 +49,9 @@ def load_models():
     return False
 
 
-def predict_answer(article, question, options):
-    """
-    Predicts the correct answer from the given options.
-    options: List or Dictionary of 4 text strings.
-    """
+def predict_answer(article, question, options, use_ensemble=True):
     if _vectorizer is None or _model is None:
-        if not load_models():
+        if not load_models(use_ensemble=use_ensemble):
             raise FileNotFoundError("Models not found. Please train Model A first.")
 
     if isinstance(options, dict):
@@ -58,10 +60,6 @@ def predict_answer(article, question, options):
     else:
         opt_list = options
         opt_keys = ["A", "B", "C", "D"]
-
-    from scipy.sparse import csr_matrix, hstack
-
-    from src.utils import get_overlap_ratio
 
     # Format inputs exactly as in training
     combined_texts = [f"{article} {article} {question} {opt}" for opt in opt_list]
@@ -102,10 +100,6 @@ def predict_answer(article, question, options):
 
 
 def generate_question(article):
-    """
-    Generates a simple question from the article based on TF-IDF and sentence ranking.
-    Uses an internal, lightweight vectorizer just for the sentences of this article.
-    """
     sentences = nltk.sent_tokenize(article)
     if not sentences:
         return "Could not extract sentences from the article."
@@ -134,10 +128,6 @@ def generate_question(article):
 
 
 def generate_distractors(article, question, answer):
-    """
-    Generates 3 plausible distractors using Gensim's Word2Vec for semantic similarity.
-    Applies the "medium similarity heuristic" to avoid synonyms.
-    """
     global _w2v_model
 
     # Load global model if not already loaded
@@ -204,10 +194,6 @@ def generate_distractors(article, question, answer):
 
 
 def generate_hints(article, question):
-    """
-    Generates graduated hints by ranking article sentences against the question
-    using standard Scikit-Learn TF-IDF and Cosine Similarity.
-    """
     sentences = nltk.sent_tokenize(article)
 
     # Degrade gracefully if the article is extremely short
