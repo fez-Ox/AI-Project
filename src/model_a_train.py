@@ -74,7 +74,9 @@ def train_and_evaluate():
 
     # Train Logistic Regression
     print("Training Logistic Regression Model...")
-    lr_model = LogisticRegression(max_iter=1000, random_state=42)
+    lr_model = LogisticRegression(
+        max_iter=1000, random_state=42, class_weight="balanced"
+    )
     lr_model.fit(X_train, y_train)
 
     # Evaluate LR
@@ -82,11 +84,11 @@ def train_and_evaluate():
     print("--- Logistic Regression Results ---")
     print(f"Accuracy: {accuracy_score(y_val, lr_preds):.4f}")
     print(f"Macro F1: {f1_score(y_val, lr_preds, average='macro'):.4f}")
-    print(classification_report(y_val, lr_preds))
+    print(classification_report(y_val, lr_preds, zero_division=0))
 
     # Train SVM
     print("Training Linear SVM Model...")
-    svm_model = LinearSVC(random_state=42, dual="auto")
+    svm_model = LinearSVC(random_state=42, dual="auto", class_weight="balanced")
     svm_model.fit(X_train, y_train)
 
     # Evaluate SVM
@@ -94,7 +96,7 @@ def train_and_evaluate():
     print("--- Linear SVM Results ---")
     print(f"Accuracy: {accuracy_score(y_val, svm_preds):.4f}")
     print(f"Macro F1: {f1_score(y_val, svm_preds, average='macro'):.4f}")
-    print(classification_report(y_val, svm_preds))
+    print(classification_report(y_val, svm_preds, zero_division=0))
 
     # Save the models and vectorizer
     os.makedirs("models/model_a", exist_ok=True)
