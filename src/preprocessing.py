@@ -2,26 +2,20 @@ import os
 
 import pandas as pd
 
-
-def clean_text(text):
-    """Clean and normalize text inputs."""
-    if pd.isna(text):
-        return ""
-    return str(text).strip()
+from src.utils import clean_text, get_option_position, get_overlap_ratio, get_word_count
 
 
 def restructure_data(df):
     """
     Converts multiple-choice format to binary classification format.
     Each question generates 4 rows (1 correct, 3 incorrect).
+    Adds handcrafted lexical features alongside the combined text.
     """
     records = []
     for _, row in df.iterrows():
         article = clean_text(row.get("article", ""))
         question = clean_text(row.get("question", ""))
-        correct_ans = (
-            str(row.get("answer", "")).strip().upper()
-        )  # Expected: 'A', 'B', 'C', 'D'
+        correct_ans = str(row.get("answer", "")).strip().upper()
 
         options = {
             "A": clean_text(row.get("A", "")),
@@ -31,10 +25,7 @@ def restructure_data(df):
         }
 
         for opt_key, opt_text in options.items():
-            # Create the combined text feature as specified in the guide
-            combined_text = f"{article} {article} {question} {opt_text}"
-
-            # Label 1 if this option is the correct answer, else 0
+            combined_text = f"{article} {question} {opt_text}"
             label = 1 if opt_key == correct_ans else 0
 
             records.append(
@@ -45,6 +36,12 @@ def restructure_data(df):
                     "option": opt_text,
                     "combined_text": combined_text,
                     "label": label,
+                    # Handcrafted lexical features
+                    "article_len": get_word_count(article),
+                    "question_len": get_word_count(question),
+                    "option_len": get_word_count(opt_text),
+                    "overlap_ratio": get_overlap_ratio(article, opt_text),
+                    "option_position": get_option_position(article, opt_text),
                 }
             )
 

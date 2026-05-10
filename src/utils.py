@@ -1,14 +1,35 @@
-def get_overlap_ratio(article, option):
-    """
-    Calculates the percentage of words in the option that also appear in the article.
-    This explicit numerical feature helps the classical ML model easily spot
-    options that have high lexical overlap with the passage.
-    """
-    art_words = set(str(article).lower().split())
-    opt_words = set(str(option).lower().split())
+import re
 
-    if not opt_words:
+
+def clean_text(text):
+    """Lowercase, strip whitespace, and remove punctuation."""
+    if not text or str(text) == "nan":
+        return ""
+    text = str(text).lower().strip()
+    text = re.sub(r"[^\w\s]", "", text)  # Remove punctuation
+    return text
+
+
+def get_overlap_ratio(text_a, text_b):
+    """Fraction of words in text_b that also appear in text_a."""
+    words_a = set(str(text_a).lower().split())
+    words_b = set(str(text_b).lower().split())
+    if not words_b:
         return 0.0
+    return len(words_a & words_b) / len(words_b)
 
-    # Return the ratio of overlapping words
-    return len(art_words.intersection(opt_words)) / len(opt_words)
+
+def get_word_count(text):
+    """Number of words in text."""
+    return len(str(text).split())
+
+
+def get_option_position(article, option):
+    """Normalized position (0-1) of where the option first appears in the article.
+    Returns -1 if not found."""
+    article_lower = str(article).lower()
+    option_lower = str(option).lower().strip()
+    pos = article_lower.find(option_lower)
+    if pos == -1 or len(article_lower) == 0:
+        return -1.0
+    return pos / len(article_lower)

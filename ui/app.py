@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 
 import pandas as pd
 import streamlit as st
@@ -13,120 +14,364 @@ from src.inference import (
     generate_question,
     predict_answer,
 )
+from ui.components import load_random_sample, measure_latency, session_log_to_csv
 
+# ── Page Config ──────────────────────────────────────────────
 st.set_page_config(page_title="AI Reading Comprehension", layout="wide")
-
 st.title("📚 Intelligent Reading Comprehension System")
-st.markdown(
-    "Upload a passage, or paste one below, to generate questions, distractors, hints, and verify answers!"
-)
+st.caption("⚠️ All questions and answers are AI-generated. Errors are possible.")
 
-# --- Sidebar Controls ---
-st.sidebar.header("Settings")
-use_ensemble = st.sidebar.checkbox("Use Ensemble Model (Model A)", value=True)
+# ── Session State Defaults ───────────────────────────────────
+for key, default in {
+    "article": "",
+    "question": "",
+    "options": {},
+    "correct_answer": "",
+    "distractors": [],
+    "hints_used": 0,
+    "quiz_submitted": False,
+    "selected_option": None,
+    "session_log": [],
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
-# --- Main Layout ---
-article_input = st.text_area(
-    "Enter Reading Passage (Article):",
-    height=200,
-    placeholder="e.g. The Apollo 11 mission was the first manned mission to land on the Moon...",
-)
+# ── Sidebar ──────────────────────────────────────────────────
+st.sidebar.header("⚙️ Settings")
+use_ensemble = st.sidebar.checkbox("Use Ensemble Model", value=True)
 
-if article_input:
-    st.success("Passage loaded successfully.")
+# ── Tabs ─────────────────────────────────────────────────────
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📝 Article Input",
+    "❓ Quiz",
+    "💡 Hints",
+    "📊 Dashboard",
+])
 
-    st.markdown("---")
 
-    col1, col2 = st.columns(2)
+# ══════════════════════════════════════════════════════════════
+# TAB 1 — Article Input
+# ══════════════════════════════════════════════════════════════
+with tab1:
+    st.subheader("Enter or Load a Reading Passage")
 
-    # ---------------------------------------------------------
-    # LEFT COLUMN: Question Generation & Distractors (Model A/B)
-    # ---------------------------------------------------------
-    with col1:
-        st.subheader("1. Generate a Quiz")
-        if st.button("Generate Question from Passage"):
-            with st.spinner("Generating..."):
-                gen_q = generate_question(article_input)
-                st.session_state["generated_question"] = gen_q
-                st.info(f"**Generated Question:** {gen_q}")
-
-        if "generated_question" in st.session_state:
-            st.write("---")
-            st.write(f"**Current Question:** {st.session_state['generated_question']}")
-            correct_ans_input = st.text_input(
-                "Enter the correct answer for this question to generate distractors:"
-            )
-
-            if correct_ans_input and st.button("Generate Distractors (Wrong Options)"):
-                with st.spinner("Finding semantic distractors..."):
-                    try:
-                        distractors = generate_distractors(
-                            article_input,
-                            st.session_state["generated_question"],
-                            correct_ans_input,
-                        )
-                        st.write("**Generated Plausible Distractors:**")
-                        for i, d in enumerate(distractors):
-                            st.error(f"{chr(65 + i)}. {d}")
-                    except Exception as e:
-                        st.error(f"Error generating distractors: {e}")
-
-            if st.button("Generate Graduated Hints"):
-                with st.spinner("Ranking sentences..."):
-                    hints = generate_hints(
-                        article_input, st.session_state["generated_question"]
-                    )
-                    st.write("**Hints:**")
-                    st.warning(
-                        f"**Hint 1 (Low Detail):** {hints['Hint 1 (Low Detail)']}"
-                    )
-                    st.warning(
-                        f"**Hint 2 (Medium Detail):** {hints['Hint 2 (Medium Detail)']}"
-                    )
-                    st.success(
-                        f"**Hint 3 (Near Explicit):** {hints['Hint 3 (Near-Explicit)']}"
-                    )
-
-    # ---------------------------------------------------------
-    # RIGHT COLUMN: Answer Verification (Model A)
-    # ---------------------------------------------------------
-    with col2:
-        st.subheader("2. Verify an Answer")
-        st.markdown("Test the AI's ability to solve a multiple-choice question.")
-
-        user_q = st.text_input("Enter a Question:")
-        opt_a = st.text_input("Option A:")
-        opt_b = st.text_input("Option B:")
-        opt_c = st.text_input("Option C:")
-        opt_d = st.text_input("Option D:")
-
-        if st.button("Predict Answer"):
-            if not user_q or not opt_a or not opt_b or not opt_c or not opt_d:
-                st.error("Please fill in the question and all 4 options.")
+    # Option to load a random RACE sample
+    col_load, col_clear = st.columns(2)
+    with col_load:
+        if st.button("🎲 Load Random RACE Sample"):
+            sample = load_random_sample()
+            if sample:
+                st.session_state["article"] = sample["article"]
+                st.session_state["question"] = sample["question"]
+                st.session_state["options"] = sample["options"]
+                st.session_state["correct_answer"] = sample["answer"]
+                st.rerun()
             else:
-                options = {"A": opt_a, "B": opt_b, "C": opt_c, "D": opt_d}
-                with st.spinner("Analyzing text overlap and semantics..."):
+                st.error("Raw dataset not found. Place CSV files in data/raw/.")
+
+    with col_clear:
+        if st.button("🗑️ Clear All"):
+            for key in ["article", "question", "options", "correct_answer",
+                        "distractors", "hints_used", "quiz_submitted", "selected_option"]:
+                st.session_state[key] = "" if isinstance(st.session_state[key], str) else type(st.session_state.get(key, None))()
+            st.session_state["hints_used"] = 0
+            st.session_state["quiz_submitted"] = False
+            st.rerun()
+
+    # Text area for article input
+    article_text = st.text_area(
+        "Reading Passage:",
+        value=st.session_state["article"],
+        height=200,
+        placeholder="Paste a reading passage here, or click 'Load Random RACE Sample'...",
+    )
+
+    # File upload
+    uploaded_file = st.file_uploader("Or upload a text file:", type=["txt"])
+    if uploaded_file:
+        article_text = uploaded_file.read().decode("utf-8")
+
+    # Submit button
+    if st.button("🚀 Submit & Generate Quiz", type="primary"):
+        if not article_text.strip():
+            st.error("Please enter a reading passage first.")
+        else:
+            st.session_state["article"] = article_text
+            st.session_state["quiz_submitted"] = False
+            st.session_state["hints_used"] = 0
+
+            with st.spinner("Generating question..."):
+                question, q_time = measure_latency(generate_question, article_text)
+                st.session_state["question"] = question
+
+            with st.spinner("Generating answer and distractors..."):
+                # Use the generated question to predict an answer from the passage
+                # Then generate distractors for it
+                try:
+                    # Generate a reasonable answer (first key sentence)
+                    import nltk
+                    sents = nltk.sent_tokenize(article_text)
+                    answer_text = sents[0] if sents else article_text[:50]
+
+                    distractors, d_time = measure_latency(
+                        generate_distractors, article_text, question, answer_text
+                    )
+
+                    # Build the MCQ options: correct answer + 3 distractors
+                    import random
+                    all_opts = [answer_text] + distractors
+                    random.shuffle(all_opts)
+                    correct_idx = all_opts.index(answer_text)
+                    keys = ["A", "B", "C", "D"]
+
+                    st.session_state["options"] = {
+                        keys[i]: all_opts[i] for i in range(min(4, len(all_opts)))
+                    }
+                    st.session_state["correct_answer"] = keys[correct_idx]
+                    st.session_state["distractors"] = distractors
+
+                    # Log latency
+                    st.session_state["session_log"].append({
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "action": "generate_quiz",
+                        "question_latency_s": round(q_time, 3),
+                        "distractor_latency_s": round(d_time, 3),
+                    })
+
+                except FileNotFoundError as e:
+                    st.error(f"Model not found: {e}. Did you run training?")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+            st.success("Quiz generated! Go to the **Quiz** tab.")
+
+    # Show current article preview
+    if st.session_state["article"]:
+        st.markdown("---")
+        st.markdown("**Current Passage Preview:**")
+        st.info(st.session_state["article"][:500] + ("..." if len(st.session_state["article"]) > 500 else ""))
+
+
+# ══════════════════════════════════════════════════════════════
+# TAB 2 — Quiz View
+# ══════════════════════════════════════════════════════════════
+with tab2:
+    st.subheader("Take the Quiz")
+
+    if not st.session_state["question"] or not st.session_state["options"]:
+        st.warning("No quiz loaded. Go to the **Article Input** tab first.")
+    else:
+        st.markdown(f"**Question:** {st.session_state['question']}")
+        st.markdown("---")
+
+        options = st.session_state["options"]
+        option_labels = [f"{k}. {v}" for k, v in options.items()]
+
+        selected = st.radio("Select your answer:", option_labels, index=None)
+
+        col_check, col_predict = st.columns(2)
+
+        with col_check:
+            if st.button("✅ Check My Answer"):
+                if selected is None:
+                    st.error("Please select an option first.")
+                else:
+                    chosen_key = selected.split(".")[0].strip()
+                    correct_key = st.session_state["correct_answer"]
+
+                    if chosen_key == correct_key:
+                        st.success(f"🎉 Correct! The answer is **{correct_key}. {options[correct_key]}**")
+                    else:
+                        st.error(
+                            f"❌ Incorrect. You chose **{chosen_key}**, "
+                            f"but the correct answer is **{correct_key}. {options[correct_key]}**"
+                        )
+
+                    st.session_state["quiz_submitted"] = True
+
+                    st.session_state["session_log"].append({
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "action": "check_answer",
+                        "chosen": chosen_key,
+                        "correct": correct_key,
+                        "is_correct": chosen_key == correct_key,
+                    })
+
+        with col_predict:
+            if st.button("🤖 Let AI Predict"):
+                with st.spinner("AI is analyzing..."):
                     try:
-                        prediction = predict_answer(
-                            article_input, user_q, options, use_ensemble=use_ensemble
+                        prediction, latency = measure_latency(
+                            predict_answer,
+                            st.session_state["article"],
+                            st.session_state["question"],
+                            options,
+                            use_ensemble,
                         )
 
-                        st.success(
-                            f"**Predicted Answer:** {prediction['predicted_option']} - {prediction['predicted_text']}"
-                        )
+                        pred_key = prediction["predicted_option"]
+                        correct_key = st.session_state["correct_answer"]
 
-                        st.write("**Confidence Scores:**")
+                        if pred_key == correct_key:
+                            st.success(
+                                f"🤖 AI predicts **{pred_key}. {prediction['predicted_text']}** — Correct! "
+                                f"(took {latency:.2f}s)"
+                            )
+                        else:
+                            st.warning(
+                                f"🤖 AI predicts **{pred_key}. {prediction['predicted_text']}** — "
+                                f"Correct was **{correct_key}** (took {latency:.2f}s)"
+                            )
 
-                        # Create a nice bar chart for confidence
-                        scores_df = pd.DataFrame(
-                            {
-                                "Option": list(prediction["confidence_scores"].keys()),
-                                "Confidence": list(
-                                    prediction["confidence_scores"].values()
-                                ),
-                            }
-                        )
+                        st.markdown("**Confidence Scores:**")
+                        scores_df = pd.DataFrame({
+                            "Option": list(prediction["confidence_scores"].keys()),
+                            "Confidence": list(prediction["confidence_scores"].values()),
+                        })
                         st.bar_chart(scores_df.set_index("Option"))
 
+                        st.session_state["session_log"].append({
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "action": "ai_predict",
+                            "predicted": pred_key,
+                            "correct": correct_key,
+                            "latency_s": round(latency, 3),
+                        })
+
                     except FileNotFoundError as e:
-                        st.error(f"Error: {e}. Did you run model_a_train.py?")
+                        st.error(f"Error: {e}")
+
+
+# ══════════════════════════════════════════════════════════════
+# TAB 3 — Hint Panel
+# ══════════════════════════════════════════════════════════════
+with tab3:
+    st.subheader("Graduated Hints")
+
+    if not st.session_state["question"]:
+        st.warning("No quiz loaded. Go to the **Article Input** tab first.")
+    else:
+        st.markdown(f"**Question:** {st.session_state['question']}")
+        st.markdown("---")
+
+        # Generate hints once and cache
+        if "hints" not in st.session_state or not st.session_state.get("hints"):
+            try:
+                hints = generate_hints(
+                    st.session_state["article"], st.session_state["question"]
+                )
+                st.session_state["hints"] = hints
+            except Exception as e:
+                st.error(f"Error generating hints: {e}")
+                st.session_state["hints"] = {}
+
+        hints = st.session_state.get("hints", {})
+        hints_used = st.session_state["hints_used"]
+
+        # Progressive reveal with expanders
+        if hints:
+            if st.button("🔍 Reveal Next Hint"):
+                if st.session_state["hints_used"] < 3:
+                    st.session_state["hints_used"] += 1
+                    st.rerun()
+
+            hints_used = st.session_state["hints_used"]
+
+            if hints_used >= 1:
+                with st.expander("💡 Hint 1 (Low Detail)", expanded=True):
+                    st.write(hints.get("Hint 1 (Low Detail)", ""))
+
+            if hints_used >= 2:
+                with st.expander("💡 Hint 2 (Medium Detail)", expanded=True):
+                    st.write(hints.get("Hint 2 (Medium Detail)", ""))
+
+            if hints_used >= 3:
+                with st.expander("💡 Hint 3 (Near-Explicit)", expanded=True):
+                    st.write(hints.get("Hint 3 (Near-Explicit)", ""))
+
+            # Show "Reveal Answer" only after all hints used
+            if hints_used >= 3:
+                st.markdown("---")
+                if st.button("🔓 Reveal Answer"):
+                    correct = st.session_state["correct_answer"]
+                    opts = st.session_state["options"]
+                    st.success(f"The correct answer is **{correct}. {opts.get(correct, '')}**")
+
+            if hints_used < 3:
+                st.info(f"Hints revealed: {hints_used}/3. Click 'Reveal Next Hint' to continue.")
+
+
+# ══════════════════════════════════════════════════════════════
+# TAB 4 — Developer / Analytics Dashboard
+# ══════════════════════════════════════════════════════════════
+with tab4:
+    st.subheader("Developer Dashboard")
+    st.caption("Model performance metrics and session analytics.")
+
+    # --- Model A Metrics ---
+    st.markdown("### Model A — Performance")
+    metrics_col1, metrics_col2 = st.columns(2)
+
+    with metrics_col1:
+        st.markdown("**Available Models:**")
+        model_files = {
+            "Logistic Regression": "models/model_a/lr_model.pkl",
+            "Linear SVM": "models/model_a/svm_model.pkl",
+            "Naive Bayes": "models/model_a/nb_model.pkl",
+            "Ensemble": "models/model_a/ensemble_model.pkl",
+        }
+        for name, path in model_files.items():
+            status = "✅ Loaded" if os.path.exists(path) else "❌ Not found"
+            st.write(f"- {name}: {status}")
+
+    with metrics_col2:
+        st.markdown("**Vectorizers:**")
+        vec_files = {
+            "One-Hot (Primary)": "models/model_a/vectorizer.pkl",
+            "TF-IDF (Optional)": "models/model_a/tfidf_vectorizer.pkl",
+        }
+        for name, path in vec_files.items():
+            status = "✅ Loaded" if os.path.exists(path) else "❌ Not found"
+            st.write(f"- {name}: {status}")
+
+    # --- Model B Metrics ---
+    st.markdown("### Model B — Performance")
+    model_b_files = {
+        "Word2Vec": "models/model_b/word2vec.model",
+        "Distractor Ranker": "models/model_b/distractor_ranker.pkl",
+        "Hint Scorer": "models/model_b/hint_scorer.pkl",
+    }
+    for name, path in model_b_files.items():
+        status = "✅ Loaded" if os.path.exists(path) else "❌ Not found"
+        st.write(f"- {name}: {status}")
+
+    st.info("Run `python src/evaluate.py` to see full Accuracy, F1, Confusion Matrix, and R² metrics.")
+
+    # --- Session Log ---
+    st.markdown("### Session Log")
+    log = st.session_state.get("session_log", [])
+
+    if log:
+        log_df = pd.DataFrame(log)
+        st.dataframe(log_df, use_container_width=True)
+
+        # Latency tracking
+        latency_entries = [e for e in log if "latency_s" in e or "question_latency_s" in e]
+        if latency_entries:
+            st.markdown("**Inference Latency:**")
+            for entry in latency_entries:
+                if "latency_s" in entry:
+                    st.write(f"- {entry['action']}: {entry['latency_s']}s")
+                if "question_latency_s" in entry:
+                    st.write(f"- Question gen: {entry['question_latency_s']}s, Distractor gen: {entry['distractor_latency_s']}s")
+
+        # CSV Export
+        csv_data = session_log_to_csv(log)
+        st.download_button(
+            label="📥 Export Session Log (CSV)",
+            data=csv_data,
+            file_name="session_log.csv",
+            mime="text/csv",
+        )
+    else:
+        st.write("No actions logged yet. Use the quiz to generate data.")

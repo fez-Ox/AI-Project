@@ -1,3 +1,28 @@
+# Data
 data/
-models/model_a/*
-models/model_b/*
+
+# Model checkpoints
+models/model_a/*.pkl
+models/model_b/*.pkl
+models/model_b/*.model
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
